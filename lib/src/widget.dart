@@ -288,6 +288,7 @@ class Markdown extends MarkdownWidget {
     this.controller,
     this.physics,
     this.shrinkWrap = false,
+    this.alignment,
   }) : super(
           key: key,
           data: data,
@@ -321,14 +322,22 @@ class Markdown extends MarkdownWidget {
   /// See also: [ScrollView.shrinkWrap]
   final bool shrinkWrap;
 
+  final MainAxisAlignment alignment;
+
+  bool get _reverse => alignment == MainAxisAlignment.end;
+
   @override
   Widget build(BuildContext context, List<Widget> children) {
-    return ListView(
+    return ListView.builder(
       padding: padding,
       controller: controller,
       physics: physics,
       shrinkWrap: shrinkWrap,
-      children: children,
+      reverse: _reverse,
+      itemCount: children.length,
+      itemBuilder: (BuildContext context, int index) {
+        return children[_reverse ? children.length - 1 - index : index];
+      },
     );
   }
 }
