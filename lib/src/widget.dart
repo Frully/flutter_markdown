@@ -60,7 +60,8 @@ abstract class MarkdownWidget extends StatefulWidget {
   /// The [data] argument must not be null.
   const MarkdownWidget({
     Key key,
-    @required this.data,
+    this.data,
+    this.nodes,
     this.selectable = false,
     this.styleSheet,
     this.styleSheetTheme = MarkdownStyleSheetBaseTheme.material,
@@ -71,12 +72,14 @@ abstract class MarkdownWidget extends StatefulWidget {
     this.imageBuilder,
     this.checkboxBuilder,
     this.fitContent = false,
-  })  : assert(data != null),
+  })  : assert(data != null || nodes != null),
         assert(selectable != null),
         super(key: key);
 
   /// The Markdown to display.
   final String data;
+
+  final List<md.Node> nodes;
 
   /// If true, the text is selectable.
   ///
@@ -127,7 +130,8 @@ abstract class MarkdownWidget extends StatefulWidget {
   _MarkdownWidgetState createState() => _MarkdownWidgetState();
 }
 
-class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuilderDelegate {
+class _MarkdownWidgetState extends State<MarkdownWidget>
+    implements MarkdownBuilderDelegate {
   List<Widget> _children;
   final List<GestureRecognizer> _recognizers = <GestureRecognizer>[];
 
@@ -140,7 +144,8 @@ class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuil
   @override
   void didUpdateWidget(MarkdownWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.data != oldWidget.data || widget.styleSheet != oldWidget.styleSheet) {
+    if (widget.data != oldWidget.data ||
+        widget.styleSheet != oldWidget.styleSheet) {
       _parseMarkdown();
     }
   }
@@ -152,17 +157,16 @@ class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuil
   }
 
   void _parseMarkdown() {
-    final MarkdownStyleSheet fallbackStyleSheet = kFallbackStyle(context, widget.styleSheetTheme);
-    final MarkdownStyleSheet styleSheet = fallbackStyleSheet.merge(widget.styleSheet);
+    final MarkdownStyleSheet fallbackStyleSheet =
+        kFallbackStyle(context, widget.styleSheetTheme);
+    final MarkdownStyleSheet styleSheet =
+        fallbackStyleSheet.merge(widget.styleSheet);
 
     _disposeRecognizers();
 
-    final List<String> lines = widget.data.split(RegExp(r'\r?\n'));
-    final md.Document document = md.Document(
-      extensionSet: widget.extensionSet ?? md.ExtensionSet.gitHubFlavored,
-      inlineSyntaxes: [TaskListSyntax()],
-      encodeHtml: false,
-    );
+    final List<md.Node> nodes =
+        widget.data != null ? _getMarkdownNodes(widget.data) : widget.nodes;
+
     final MarkdownBuilder builder = MarkdownBuilder(
       delegate: this,
       selectable: widget.selectable,
@@ -172,12 +176,24 @@ class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuil
       checkboxBuilder: widget.checkboxBuilder,
       fitContent: widget.fitContent,
     );
-    _children = builder.build(document.parseLines(lines));
+
+    _children = builder.build(nodes);
+  }
+
+  List<md.Node> _getMarkdownNodes(String data) {
+    final List<String> lines = data.split(RegExp(r'\r?\n'));
+    final md.Document document = md.Document(
+      extensionSet: widget.extensionSet ?? md.ExtensionSet.gitHubFlavored,
+      inlineSyntaxes: [TaskListSyntax()],
+      encodeHtml: false,
+    );
+    return document.parseLines(lines);
   }
 
   void _disposeRecognizers() {
     if (_recognizers.isEmpty) return;
-    final List<GestureRecognizer> localRecognizers = List<GestureRecognizer>.from(_recognizers);
+    final List<GestureRecognizer> localRecognizers =
+        List<GestureRecognizer>.from(_recognizers);
     _recognizers.clear();
     for (GestureRecognizer recognizer in localRecognizers) recognizer.dispose();
   }
@@ -218,7 +234,8 @@ class MarkdownBody extends MarkdownWidget {
   /// Creates a non-scrolling widget that parses and displays Markdown.
   const MarkdownBody({
     Key key,
-    @required String data,
+    String data,
+    List<md.Node> nodes,
     bool selectable = false,
     MarkdownStyleSheet styleSheet,
     MarkdownStyleSheetBaseTheme styleSheetTheme,
@@ -233,6 +250,7 @@ class MarkdownBody extends MarkdownWidget {
   }) : super(
           key: key,
           data: data,
+          nodes: nodes,
           selectable: selectable,
           styleSheet: styleSheet,
           styleSheetTheme: styleSheetTheme,
@@ -255,7 +273,8 @@ class MarkdownBody extends MarkdownWidget {
     if (children.length == 1) return children.single;
     return Column(
       mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
-      crossAxisAlignment: fitContent ? CrossAxisAlignment.start : CrossAxisAlignment.stretch,
+      crossAxisAlignment:
+          fitContent ? CrossAxisAlignment.start : CrossAxisAlignment.stretch,
       children: children,
     );
   }
@@ -274,7 +293,8 @@ class Markdown extends MarkdownWidget {
   /// Creates a scrolling widget that parses and displays Markdown.
   const Markdown({
     Key key,
-    @required String data,
+    String data,
+    List<md.Node> nodes,
     bool selectable = false,
     MarkdownStyleSheet styleSheet,
     MarkdownStyleSheetBaseTheme styleSheetTheme,
@@ -292,6 +312,7 @@ class Markdown extends MarkdownWidget {
   }) : super(
           key: key,
           data: data,
+          nodes: nodes,
           selectable: selectable,
           styleSheet: styleSheet,
           styleSheetTheme: styleSheetTheme,
@@ -310,7 +331,7 @@ class Markdown extends MarkdownWidget {
   ///
   /// See also: [ScrollView.controller]
   final ScrollController controller;
-  
+
   /// How the scroll view should respond to user input.
   ///
   /// See also: [ScrollView.physics]
